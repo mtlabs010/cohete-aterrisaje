@@ -1,0 +1,68 @@
+PARTE A - Aerodinámica 3D contra resultados conocidos
+  [OK] Velocidad límite: aceleración neta a v_lim [m/s^2]: -0.0196035 (esperado 0, error 1.96e-02)
+  [OK] Caso plano con aire, giro 0°: x final [m]: 93.2217 (esperado 93.2217, error 3.27e-13)
+  [OK]   ... altura final [m]: 1041.04 (esperado 1041.04, error 2.27e-13)
+  [OK]   ... componente fuera de su plano [m]: 0 (esperado 0, error 0.00e+00)
+  [OK] Caso plano con aire, giro 40°: x final [m]: 93.2217 (esperado 93.2217, error 5.40e-13)
+  [OK]   ... altura final [m]: 1041.04 (esperado 1041.04, error 4.55e-13)
+  [OK]   ... componente fuera de su plano [m]: 1.91847e-13 (esperado 0, error 1.92e-13)
+  [OK] Caso plano con aire, giro 143°: x final [m]: 93.2217 (esperado 93.2217, error 2.60e-12)
+  [OK]   ... altura final [m]: 1041.04 (esperado 1041.04, error 4.55e-13)
+  [OK]   ... componente fuera de su plano [m]: 2.06057e-13 (esperado 0, error 2.06e-13)
+  [OK] Par de las aletas lineal en u [N·m]: 1.5877e-10 (esperado 0, error 1.59e-10)
+  [OK] Par de las aletas: eje 1 -> momento y del cuerpo [N·m]: 195315 (esperado 195315, error 8.73e-11)
+  [OK] Par de las aletas: eje 2 -> momento x del cuerpo [N·m]: -195315 (esperado -195315, error 2.91e-11)
+
+PARTE B - Fase 6: 500 aterrizajes aleatorios en 3D con atmósfera y aletas (x, y hasta 150 m)
+  Aterrizajes correctos: 407/500 (81.4 %)
+    fallo por demasiada velocidad horizontal: 89
+    fallo por fuera de la plataforma: 57
+    fallo por impacto vertical demasiado fuerte: 30
+  Velocidad vertical al contacto: media 1.99 m/s, peor 3.01 m/s
+  Distancia al centro:            media 3.05 m, peor 52.88 m
+  Combustible gastado:            medio 2809 kg
+  Inclinación máxima en vuelo:    26.4 grados
+
+PARTE C - Qué pasa si se quita una pieza (200 aterrizajes cada una)
+  sin aletas:
+  Aterrizajes correctos: 2/200 (1.0 %)
+    fallo por demasiada velocidad horizontal: 197
+    fallo por fuera de la plataforma: 195
+    fallo por impacto vertical demasiado fuerte: 60
+    fallo por girando demasiado: 3
+  Velocidad vertical al contacto: media 2.38 m/s, peor 3.32 m/s
+  Distancia al centro:            media 89.22 m, peor 268.84 m
+  Combustible gastado:            medio 2795 kg
+  Inclinación máxima en vuelo:    14.9 grados
+
+  sin sonda:
+  Aterrizajes correctos: 83/200 (41.5 %)
+    fallo por demasiada velocidad horizontal: 115
+    fallo por fuera de la plataforma: 87
+    fallo por impacto vertical demasiado fuerte: 25
+  Velocidad vertical al contacto: media 2.11 m/s, peor 2.94 m/s
+  Distancia al centro:            media 13.95 m, peor 102.76 m
+  Combustible gastado:            medio 2798 kg
+  Inclinación máxima en vuelo:    27.9 grados
+
+  sin aletas en el encendido:
+  Aterrizajes correctos: 6/200 (3.0 %)
+    fallo por demasiada velocidad horizontal: 194
+    fallo por fuera de la plataforma: 174
+    fallo por impacto vertical demasiado fuerte: 37
+  Velocidad vertical al contacto: media 2.26 m/s, peor 2.86 m/s
+  Distancia al centro:            media 35.03 m, peor 142.26 m
+  Combustible gastado:            medio 2781 kg
+  Inclinación máxima en vuelo:    26.3 grados
+
+  sonda 5x peor:
+  Aterrizajes correctos: 158/200 (79.0 %)
+    fallo por demasiada velocidad horizontal: 41
+    fallo por fuera de la plataforma: 26
+    fallo por impacto vertical demasiado fuerte: 12
+  Velocidad vertical al contacto: media 1.97 m/s, peor 3.01 m/s
+  Distancia al centro:            media 3.46 m, peor 52.60 m
+  Combustible gastado:            medio 2799 kg
+  Inclinación máxima en vuelo:    26.7 grados
+
+FÍSICA 3D CON ATMÓSFERA VALIDADA

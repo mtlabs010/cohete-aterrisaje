@@ -1,0 +1,24 @@
+PARTE A - Física 3D contra resultados conocidos
+  [OK] Caída libre 10 s, altura [m]: 509.667 (esperado 509.668, error 5.46e-12)
+  [OK] Longitud del cuaternión tras 1000 pasos: 1 (esperado 1, error 0.00e+00)
+  [OK] Momento angular tras 30 s (error relativo): 2.60557e-09 (esperado 0, error 2.61e-09)
+  [OK] Energía de giro tras 30 s (error relativo): 1 (esperado 1, error 3.59e-10)
+  [OK] Precesión: omega_x a los 20 s [rad/s]: -0.0684404 (esperado -0.0684404, error 3.46e-09)
+  [OK] Precesión: omega_y a los 20 s [rad/s]: 0.292089 (esperado 0.292089, error 8.55e-10)
+  [OK] Caso plano 3D frente a 2D: x final [m]: 0.0317078 (esperado 0.0317078, error 1.42e-10)
+  [OK] Caso plano 3D frente a 2D: z final [m]: 0.0065865 (esperado 0.0065865, error 4.43e-11)
+  [OK] Caso plano 3D frente a 2D: inclinación final [rad]: -0.000282568 (esperado -0.000282568, error 6.11e-16)
+  [OK] Caso plano 3D: no se sale del plano, y final [m]: 0 (esperado 0, error 0.00e+00)
+  [OK] Vuelo girado 37° y rodado 115°: distancia final [m]: 0.0317078 (esperado 0.0317078, error 2.30e-10)
+  [OK] Vuelo girado: componente fuera de su plano [m]: 1.91733e-10 (esperado 0, error 1.92e-10)
+  [OK] Vuelo girado: altura final [m]: 0.0065865 (esperado 0.0065865, error 1.39e-13)
+
+PARTE B - Fase 5: 500 aterrizajes aleatorios en 3D (sensores con ruido, retardos, balanceo)
+  Aterrizajes correctos: 499/500 (99.8 %)
+    fallo por demasiada velocidad horizontal: 1
+  Velocidad vertical al contacto: media 1.65 m/s, peor 2.34 m/s
+  Distancia al centro:            media 1.07 m, peor 3.15 m
+  Combustible gastado:            medio 3317 kg
+  Inclinación máxima en vuelo:    19.1 grados
+
+FÍSICA 3D VALIDADA

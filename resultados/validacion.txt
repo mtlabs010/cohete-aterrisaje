@@ -1,0 +1,68 @@
+PARTE A - Física contra fórmulas conocidas
+  [OK] Caída libre, altura a los 5 s: simulado 777.41687, teórico 777.41688 (tolerancia 1e-06)
+  [OK] Caída libre, velocidad a los 5 s: simulado -69.03325, teórico -69.03325 (tolerancia 1e-06)
+  [OK] Tsiolkovski, velocidad tras 10 s de motor: simulado 221.49098, teórico 221.49098 (tolerancia 1e-06)
+  [OK] Masa quemada en 10 s [kg]: simulado 3055.53262, teórico 3055.53262 (tolerancia 1e-06)
+  [OK] Velocidad de giro tras 1 s [rad/s]: simulado -0.00118, teórico -0.00118 (tolerancia 1e-06)
+  [OK] Mismo aterrizaje con la mitad de paso de tiempo (x final): simulado 0.65508, teórico 0.65466 (tolerancia 0.01)
+  [OK] Velocidad terminal: aceleración vertical [m/s^2]: simulado 0.00000, teórico 0.00000 (tolerancia 0.001)
+  [OK] Densidad del aire a 8500 m respecto al nivel del mar: simulado 0.36788, teórico 0.36788 (tolerancia 1e-09)
+  [OK] Par de veleta con inclinación +10 grados (signo opuesto a la inclinación): simulado 1.00000, teórico 1.00000 (tolerancia 0.0)
+  [OK] Par de veleta con inclinación -10 grados (signo opuesto a la inclinación): simulado 1.00000, teórico 1.00000 (tolerancia 0.0)
+
+PARTE B - Fase 1: 500 aterrizajes aleatorios (motor encendido todo el vuelo)
+  Aterrizajes correctos: 484/500 (96.8 %)
+    - demasiada velocidad lateral: 14
+    - fuera de la plataforma: 7
+  Velocidad vertical al contacto: media 1.00 m/s, peor 1.04 m/s
+  Distancia al centro:            media 1.17 m,   peor 23.33 m
+  Inclinación al contacto:        media 1.10 grados, peor 4.51 grados
+  Combustible:                    media 3370 kg, máximo 3626 kg (disponible 6000)
+
+PARTE C - Fase 2: 500 aterrizajes aleatorios (hoverslam, gas mínimo 40 %)
+  Aterrizajes correctos: 498/500 (99.6 %)
+    - demasiada velocidad lateral: 2
+  Velocidad vertical al contacto: media 0.81 m/s, peor 0.86 m/s
+  Distancia al centro:            media 1.02 m,   peor 3.70 m
+  Inclinación al contacto:        media 0.37 grados, peor 2.81 grados
+  Combustible:                    media 3323 kg, máximo 3552 kg (disponible 6000)
+
+PARTE D - Fase 3: 500 aterrizajes aleatorios con sensores ruidosos y motor con retardo
+  Aterrizajes correctos: 499/500 (99.8 %)
+    - demasiada velocidad lateral: 1
+  Velocidad vertical al contacto: media 1.67 m/s, peor 2.24 m/s
+  Distancia al centro:            media 0.89 m,   peor 3.33 m
+  Inclinación al contacto:        media 0.36 grados, peor 2.60 grados
+  Combustible:                    media 3314 kg, máximo 3547 kg (disponible 6000)
+
+PARTE E1 - Fase 4, con atmósfera pero SIN aletas (el controlador de la fase 3)
+  Aterrizajes correctos: 3/500 (0.6 %)
+    - impacto vertical demasiado fuerte: 493
+    - demasiada velocidad lateral: 469
+    - fuera de la plataforma: 427
+  Velocidad vertical al contacto: media 3.01 m/s, peor 3.65 m/s
+  Distancia al centro:            media 62.41 m,   peor 262.26 m
+  Inclinación al contacto:        media 3.74 grados, peor 4.83 grados
+  Combustible:                    media 2803 kg, máximo 2947 kg (disponible 6000)
+
+PARTE E2 - Fase 4, con atmósfera y CON aletas de rejilla
+  Aterrizajes correctos: 447/500 (89.4 %)
+    - demasiada velocidad lateral: 51
+    - fuera de la plataforma: 33
+    - impacto vertical demasiado fuerte: 22
+  Velocidad vertical al contacto: media 1.96 m/s, peor 3.05 m/s
+  Distancia al centro:            media 2.27 m,   peor 78.61 m
+  Inclinación al contacto:        media 0.63 grados, peor 4.92 grados
+  Combustible:                    media 2814 kg, máximo 2994 kg (disponible 6000)
+
+PARTE E3 - Fase 4 con aletas, partiendo cerca (x hasta 60 m)
+  Aterrizajes correctos: 485/500 (97.0 %)
+    - demasiada velocidad lateral: 14
+    - fuera de la plataforma: 9
+    - impacto vertical demasiado fuerte: 2
+  Velocidad vertical al contacto: media 1.92 m/s, peor 2.58 m/s
+  Distancia al centro:            media 0.90 m,   peor 12.06 m
+  Inclinación al contacto:        media 0.41 grados, peor 2.32 grados
+  Combustible:                    media 2818 kg, máximo 3004 kg (disponible 6000)
+
+FÍSICA VALIDADA

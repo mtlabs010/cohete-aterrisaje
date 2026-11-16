@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aterriza tú el cohete</title>
+<style>
+  :root { --bg:#0d1321; --panel:#151c2e; --line:#2a3350; --text:#e6e9f0; --dim:#8a93a8;
+          --blue:#4cc9f0; --orange:#ff9f1c; --green:#80ed99; --red:#ff5d73; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+               font:14px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+  #app { display:grid; grid-template-rows:auto 1fr auto; height:100%; }
+  header { padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; }
+  header h1 { font-size:15px; margin:0; letter-spacing:.02em; }
+  .grupo { display:flex; align-items:center; gap:6px; }
+  .grupo > span { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  button, select { font:inherit; color:var(--text); background:#1d2640; border:1px solid var(--line);
+                   border-radius:6px; padding:5px 11px; cursor:pointer; touch-action:manipulation; user-select:none; }
+  button:hover, select:hover { border-color:var(--blue); }
+  button.on { background:var(--blue); color:#06141c; border-color:var(--blue); font-weight:600; }
+  main { position:relative; min-height:0; }
+  canvas { display:block; width:100%; height:100%; }
+  #hud { position:absolute; left:12px; top:12px; background:rgba(13,19,33,.78); border:1px solid var(--line);
+         border-radius:8px; padding:8px 12px; font:12.5px/1.55 ui-monospace, Consolas, monospace; pointer-events:none; min-width:225px; }
+  #hud .k { color:var(--dim); } #hud .v { float:right; margin-left:14px; }
+  #motor { margin-top:4px; padding-top:4px; border-top:1px solid var(--line); font-weight:700; }
+  #gauge { position:absolute; left:12px; bottom:12px; width:225px; background:rgba(13,19,33,.78); border:1px solid var(--line);
+           border-radius:8px; padding:8px 12px; font-size:12px; pointer-events:none; }
+  #gauge .barra { height:10px; border-radius:5px; background:#232b44; margin:5px 0 4px; overflow:hidden; }
+  #gauge .rell { height:100%; width:0; background:var(--green); }
+  #consejo { font-weight:700; min-height:1.4em; }
+  #cartel { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(13,19,33,.84); padding:16px; }
+  #caja { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 26px; max-width:640px; width:100%; max-height:100%; overflow:auto; }
+  #caja h2 { margin:0 0 8px; font-size:20px; }
+  #caja table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  #caja th, #caja td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--line); }
+  #caja th:first-child, #caja td:first-child { text-align:left; color:var(--dim); }
+  .bien { color:var(--green); } .mal { color:var(--red); }
+  kbd { background:#1d2640; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 6px; font:12px ui-monospace, Consolas, monospace; }
+  #caja p { margin:6px 0; color:var(--text); }
+  #caja .dim { color:var(--dim); font-size:13px; }
+  #caja button.grande { margin-top:10px; padding:8px 20px; font-size:15px; background:var(--blue); color:#06141c; border-color:var(--blue); font-weight:700; }
+  footer { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:8px 14px; background:var(--panel); border-top:1px solid var(--line); }
+  footer button { min-width:92px; padding:9px 12px; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Aterriza tú el cohete</h1>
+    <div class="grupo"><span>Dificultad</span>
+      <button data-modo="facil">Fácil</button><button data-modo="asistido">Asistido</button><button data-modo="experto">Experto</button>
+    </div>
+    <div class="grupo"><span>Velocidad</span>
+      <select id="vel"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select>
+    </div>
+    <div class="grupo"><span>Ayudas</span><button id="btn-ayuda" class="on">Sí</button></div>
+    <div class="grupo"><button id="btn-pausa">Pausa</button><button id="btn-reiniciar">Reiniciar</button></div>
+  </header>
+  <main>
+    <canvas id="c"></canvas>
+    <div id="hud"></div>
+    <div id="gauge">
+      <div>Frenada: velocidad actual / máxima que aún se puede frenar</div>
+      <div class="barra"><div class="rell" id="rell"></div></div>
+      <div id="consejo"></div>
+    </div>
+    <div id="cartel"><div id="caja"></div></div>
+  </main>
+  <footer id="tactil">
+    <button data-tecla="Space">Motor</button>
+    <button data-tecla="ArrowUp">Gas +</button>
+    <button data-tecla="ArrowDown">Gas −</button>
+    <button data-tecla="ArrowLeft">◀ Izquierda</button>
+    <button data-tecla="ArrowRight">Derecha ▶</button>
+  </footer>
+</div>
+
+<script>
+"use strict";
+const FANTASMA = {"t":[0.0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.45,1.5,1.55,1.6,1.65,1.7,1.75,1.8,1.85,1.9,1.95,2.0,2.05,2.1,2.15,2.2,2.25,2.3,2.35,2.4,2.45,2.5,2.55,2.6,2.65,2.7,2.75,2.8,2.85,2.9,2.95,3.0,3.05,3.1,3.15,3.2,3.25,3.3,3.35,3.4,3.45,3.5,3.55,3.6,3.65,3.7,3.75,3.8,3.85,3.9,3.95,4.0,4.05,4.1,4.15,4.2,4.25,4.3,4.35,4.4,4.45,4.5,4.55,4.6,4.65,4.7,4.75,4.8,4.85,4.9,4.95,5.0,5.05,5.1,5.15,5.2,5.25,5.3,5.35,5.4,5.45,5.5,5.55,5.6,5.65,5.7,5.75,5.8,5.85,5.9,5.95,6.0,6.05,6.1,6.15,6.2,6.25,6.3,6.35,6.4,6.45,6.5,6.55,6.6,6.65,6.7,6.75,6.8,6.85,6.9,6.95,7.0,7.05,7.1,7.15,7.2,7.25,7.3,7.35,7.4,7.45,7.5,7.55,7.6,7.65,7.7,7.75,7.8,7.85,7.9,7.95,8.0,8.05,8.1,8.15,8.2,8.25,8.3,8.35,8.4,8.45,8.5,8.55,8.6,8.65,8.7,8.75,8.8,8.85,8.9,8.95,9.0,9.05,9.1,9.15,9.2,9.25,9.3,9.35,9.4,9.45,9.5,9.55,9.6,9.65,9.7,9.75,9.8,9.85,9.9,9.95,10.0,10.05,10.1,10.15,10.2,10.25,10.3,10.35,10.4,10.45,10.5,10.55,10.6,10.65,10.7,10.75,10.8,10.85,10.9,10.95,11.0,11.05,11.1,11.15,11.2,11.25,11.3,11.35,11.4,11.45,11.5,11.55,11.6,11.65,11.7,11.75,11.8,11.85,11.9,11.95,12.0,12.05,12.1,12.15,12.2,12.25,12.3,12.35,12.4,12.45,12.5,12.55,12.6,12.65,12.7,12.75,12.8,12.85,12.9,12.95,13.0,13.05,13.1,13.15,13.2,13.25,13.3,13.35,13.4,13.45,13.5,13.55,13.6,13.65,13.7,13.75,13.8,13.85,13.9,13.95,14.0,14.05,14.1,14.15,14.2,14.25,14.3,14.35,14.4,14.45,14.5,14.55,14.6,14.65,14.7,14.75,14.8,14.85,14.9,14.95,15.0,15.05,15.1,15.15,15.2,15.25,15.3,15.35,15.4,15.45,15.5,15.55,15.6,15.65,15.7,15.75,15.8,15.85,15.9,15.95,16.0,16.05,16.1,16.15,16.2,16.25,16.3,16.35,16.4,16.45,16.5,16.55,16.6,16.65,16.7,16.75,16.8,16.85,16.9,16.95,17.0,17.05,17.1,17.15,17.2,17.25,17.3,17.35,17.4,17.45,17.5,17.55,17.6,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18.0,18.05,18.1,18.15,18.2,18.25,18.3,18.35,18.4,18.45,18.5,18.55,18.6,18.65,18.7,18.75,18.8,18.85,18.9,18.95,19.0,19.05,19.1,19.15,19.2,19.25,19.3,19.35,19.4,19.45,19.5,19.55,19.6,19.65,19.7,19.75,19.8,19.85,19.9,19.95,20.0,20.05,20.1,20.15,20.2,20.25,20.3,20.35,20.4,20.45,20.5,20.55,20.6,20.65,20.7,20.75,20.8,20.85,20.9,20.95,21.0,21.05,21.1,21.15,21.2,21.25,21.3,21.35,21.4,21.45,21.5,21.55,21.6,21.65,21.7,21.75,21.8,21.85,21.9,21.95,22.0,22.05,22.1,22.15,22.2,22.25,22.3,22.35,22.4,22.45,22.5,22.55,22.6,22.65,22.7,22.75,22.8,22.85,22.9,22.95,22.997],"x":[120.0,119.7,119.402,119.104,118.808,118.513,118.218,117.925,117.633,117.342,117.053,116.764,116.477,116.191,115.906,115.622,115.34,115.059,114.779,114.5,114.223,113.947,113.672,113.399,113.127,112.856,112.586,112.318,112.051,111.785,111.52,111.257,110.994,110.733,110.473,110.214,109.957,109.7,109.444,109.19,108.936,108.684,108.433,108.182,107.933,107.684,107.437,107.19,106.945,106.7,106.456,106.213,105.971,105.73,105.49,105.25,105.012,104.774,104.537,104.301,104.066,103.832,103.598,103.366,103.134,102.904,102.674,102.445,102.217,101.99,101.764,101.539,101.315,101.091,100.869,100.648,100.428,100.209,99.991,99.774,99.558,99.343,99.129,98.917,98.705,98.495,98.285,98.077,97.87,97.664,97.459,97.255,97.052,96.851,96.65,96.45,96.252,96.055,95.858,95.663,95.468,95.275,95.082,94.891,94.7,94.51,94.321,94.133,93.946,93.759,93.574,93.389,93.204,93.021,92.838,92.655,92.474,92.292,92.112,91.932,91.752,91.573,91.395,91.217,91.039,90.862,90.686,90.51,90.334,90.159,89.984,89.809,89.635,89.461,89.288,89.115,88.943,88.771,88.6,88.438,88.287,88.146,88.016,87.896,87.785,87.684,87.59,87.5,87.414,87.327,87.237,87.143,87.043,86.934,86.816,86.687,86.546,86.392,86.224,86.041,85.843,85.629,85.399,85.152,84.888,84.607,84.309,83.994,83.661,83.311,82.943,82.559,82.158,81.739,81.305,80.853,80.386,79.903,79.404,78.889,78.36,77.815,77.256,76.683,76.095,75.493,74.875,74.242,73.593,72.927,72.244,71.544,70.827,70.092,69.341,68.574,67.79,66.99,66.175,65.346,64.503,63.647,62.779,61.9,61.01,60.112,59.205,58.291,57.371,56.446,55.518,54.586,53.653,52.72,51.787,50.856,49.928,49.003,48.083,47.168,46.26,45.36,44.468,43.585,42.711,41.848,40.997,40.157,39.329,38.514,37.712,36.924,36.149,35.388,34.642,33.909,33.191,32.488,31.799,31.124,30.463,29.816,29.183,28.563,27.957,27.364,26.783,26.215,25.659,25.115,24.581,24.059,23.547,23.046,22.554,22.071,21.598,21.133,20.677,20.228,19.787,19.354,18.927,18.507,18.094,17.687,17.286,16.89,16.5,16.116,15.737,15.363,14.994,14.63,14.271,13.917,13.567,13.223,12.882,12.547,12.216,11.89,11.568,11.252,10.94,10.633,10.33,10.033,9.741,9.454,9.172,8.895,8.623,8.357,8.096,7.841,7.591,7.347,7.108,6.875,6.648,6.426,6.21,6.0,5.795,5.596,5.403,5.216,5.034,4.857,4.686,4.521,4.361,4.206,4.057,3.912,3.773,3.638,3.508,3.383,3.263,3.146,3.034,2.927,2.823,2.723,2.627,2.534,2.445,2.358,2.275,2.196,2.118,2.044,1.972,1.903,1.836,1.771,1.708,1.647,1.588,1.53,1.475,1.421,1.368,1.317,1.267,1.218,1.171,1.124,1.079,1.035,0.992,0.949,0.908,0.868,0.828,0.79,0.752,0.715,0.679,0.644,0.61,0.577,0.544,0.513,0.482,0.452,0.423,0.395,0.368,0.342,0.317,0.293,0.27,0.247,0.226,0.206,0.187,0.169,0.152,0.135,0.12,0.106,0.093,0.081,0.069,0.059,0.05,0.041,0.034,0.027,0.021,0.016,0.012,0.008,0.005,0.003,0.001,0.0,-0.0,-0.001,-0.0,0.0,0.002,0.003,0.005,0.007,0.009,0.011,0.013,0.016,0.019,0.021,0.024,0.026,0.029,0.031,0.034,0.036,0.038,0.04,0.042,0.044,0.046,0.047,0.049,0.05,0.051,0.052,0.052,0.053,0.053,0.053,0.054,0.054,0.054,0.053,0.053,0.053,0.052,0.052,0.051,0.051,0.051,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.051,0.051,0.052,0.053,0.055,0.056,0.058,0.06],"z":[2500.0,2493.988,2487.951,2481.89,2475.804,2469.694,2463.559,2457.399,2451.215,2445.007,2438.774,2432.517,2426.235,2419.928,2413.597,2407.242,2400.862,2394.457,2388.028,2381.575,2375.097,2368.594,2362.067,2355.515,2348.939,2342.339,2335.713,2329.064,2322.389,2315.691,2308.968,2302.22,2295.447,2288.651,2281.829,2274.984,2268.113,2261.218,2254.299,2247.355,2240.387,2233.394,2226.376,2219.334,2212.268,2205.177,2198.061,2190.921,2183.757,2176.568,2169.354,2162.116,2154.854,2147.566,2140.255,2132.919,2125.558,2118.173,2110.763,2103.329,2095.87,2088.387,2080.879,2073.347,2065.79,2058.209,2050.603,2042.972,2035.318,2027.638,2019.934,2012.206,2004.453,1996.675,1988.873,1981.047,1973.196,1965.32,1957.42,1949.496,1941.547,1933.573,1925.575,1917.552,1909.505,1901.434,1893.338,1885.217,1877.072,1868.902,1860.708,1852.489,1844.246,1835.978,1827.686,1819.369,1811.027,1802.662,1794.271,1785.856,1777.417,1768.953,1760.465,1751.952,1743.414,1734.852,1726.266,1717.655,1709.019,1700.359,1691.674,1682.965,1674.232,1665.474,1656.691,1647.884,1639.052,1630.196,1621.315,1612.41,1603.48,1594.526,1585.547,1576.544,1567.516,1558.464,1549.387,1540.286,1531.16,1522.009,1512.835,1503.635,1494.411,1485.163,1475.89,1466.592,1457.27,1447.924,1438.559,1429.23,1419.952,1410.725,1401.547,1392.421,1383.344,1374.319,1365.344,1356.421,1347.548,1338.727,1329.956,1321.232,1312.555,1303.922,1295.332,1286.783,1278.274,1269.805,1261.373,1252.978,1244.619,1236.296,1228.007,1219.752,1211.53,1203.341,1195.184,1187.059,1178.966,1170.904,1162.873,1154.873,1146.903,1138.964,1131.055,1123.176,1115.326,1107.506,1099.716,1091.954,1084.222,1076.518,1068.843,1061.197,1053.578,1045.987,1038.424,1030.888,1023.38,1015.898,1008.444,1001.017,993.616,986.243,978.896,971.577,964.285,957.021,949.784,942.574,935.392,928.238,921.112,914.014,906.943,899.9,892.886,885.899,878.94,872.009,865.106,858.231,851.383,844.564,837.772,831.007,824.271,817.562,810.88,804.226,797.6,791.0,784.428,777.884,771.366,764.876,758.413,751.977,745.568,739.187,732.832,726.505,720.205,713.932,707.687,701.469,695.278,689.114,682.978,676.869,670.788,664.734,658.707,652.708,646.737,640.793,634.877,628.988,623.127,617.293,611.487,605.709,599.958,594.235,588.54,582.872,577.232,571.619,566.034,560.476,554.946,549.443,543.968,538.521,533.101,527.708,522.343,517.005,511.695,506.412,501.157,495.929,490.729,485.556,480.41,475.292,470.201,465.138,460.102,455.093,450.112,445.158,440.231,435.332,430.461,425.616,420.799,416.01,411.248,406.513,401.806,397.126,392.473,387.848,383.25,378.68,374.137,369.621,365.133,360.672,356.238,351.832,347.454,343.102,338.779,334.482,330.213,325.971,321.757,317.57,313.411,309.279,305.174,301.097,297.047,293.025,289.03,285.063,281.122,277.21,273.325,269.467,265.637,261.834,258.058,254.31,250.59,246.896,243.231,239.592,235.981,232.398,228.842,225.313,221.812,218.339,214.892,211.473,208.082,204.718,201.381,198.072,194.79,191.536,188.309,185.11,181.938,178.793,175.676,172.586,169.524,166.489,163.481,160.501,157.548,154.623,151.725,148.855,146.012,143.196,140.408,137.647,134.914,132.208,129.529,126.878,124.255,121.658,119.09,116.548,114.034,111.548,109.088,106.657,104.252,101.876,99.526,97.204,94.909,92.642,90.403,88.19,86.005,83.848,81.718,79.615,77.54,75.492,73.472,71.479,69.513,67.575,65.664,63.781,61.925,60.096,58.295,56.522,54.776,53.057,51.365,49.701,48.065,46.456,44.874,43.32,41.793,40.293,38.821,37.377,35.959,34.569,33.207,31.872,30.564,29.284,28.031,26.806,25.608,24.437,23.294,22.178,21.09,20.029,18.995,17.989,17.01,16.059,15.135,14.238,13.369,12.527,11.713,10.926,10.166,9.434,8.729,8.051,7.401,6.778,6.182,5.614,5.073,4.559,4.073,3.614,3.183,2.779,2.402,2.052,1.729,1.434,1.166,0.926,0.712,0.526,0.366,0.234,0.128,0.05,0.0],"th":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-0.0001,-0.0012,-0.0034,-0.0068,-0.0114,-0.0172,-0.0242,-0.0324,-0.0417,-0.0518,-0.0626,-0.0739,-0.0855,-0.0973,-0.109,-0.1207,-0.1322,-0.1434,-0.1543,-0.1647,-0.1747,-0.1843,-0.1932,-0.2017,-0.2096,-0.217,-0.2238,-0.2301,-0.2359,-0.2411,-0.2459,-0.2501,-0.2539,-0.2573,-0.2603,-0.2629,-0.2652,-0.2671,-0.2687,-0.27,-0.2711,-0.272,-0.2726,-0.273,-0.2733,-0.2735,-0.2734,-0.2732,-0.2728,-0.2719,-0.2707,-0.269,-0.2667,-0.2639,-0.2604,-0.2564,-0.2517,-0.2463,-0.2404,-0.2338,-0.2266,-0.2188,-0.2104,-0.2015,-0.1921,-0.1823,-0.172,-0.1613,-0.1503,-0.139,-0.1275,-0.1158,-0.1039,-0.0919,-0.0799,-0.0678,-0.0558,-0.0439,-0.0321,-0.0204,-0.009,0.0022,0.0131,0.0237,0.034,0.0438,0.0533,0.0623,0.0708,0.0789,0.0865,0.0936,0.1001,0.1062,0.1117,0.1167,0.1212,0.1252,0.1287,0.1316,0.1341,0.1362,0.1378,0.139,0.1397,0.1401,0.1402,0.1399,0.1393,0.1384,0.1373,0.1359,0.1343,0.1326,0.1307,0.1286,0.1265,0.1243,0.122,0.1196,0.1173,0.1149,0.1125,0.1102,0.1079,0.1057,0.1035,0.1014,0.0994,0.0975,0.0957,0.094,0.0924,0.0909,0.0895,0.0882,0.087,0.086,0.085,0.0841,0.0834,0.0827,0.0822,0.0817,0.0813,0.0809,0.0806,0.0804,0.0802,0.0801,0.08,0.0799,0.0798,0.0798,0.0797,0.0797,0.0796,0.0795,0.0794,0.0793,0.0791,0.0789,0.0786,0.0783,0.0779,0.0775,0.077,0.0765,0.0759,0.0752,0.0745,0.0737,0.0729,0.072,0.071,0.07,0.0689,0.0677,0.0665,0.0653,0.064,0.0627,0.0613,0.0599,0.0585,0.057,0.0555,0.054,0.0525,0.051,0.0495,0.048,0.0465,0.045,0.0435,0.042,0.0406,0.0391,0.0377,0.0364,0.035,0.0337,0.0325,0.0312,0.0301,0.0289,0.0278,0.0268,0.0258,0.0248,0.0239,0.0231,0.0223,0.0215,0.0208,0.0201,0.0195,0.0189,0.0183,0.0178,0.0173,0.0169,0.0165,0.0161,0.0157,0.0154,0.0151,0.0148,0.0146,0.0143,0.0141,0.0139,0.0136,0.0134,0.0132,0.0131,0.0129,0.0127,0.0125,0.0123,0.0121,0.0119,0.0117,0.0114,0.0112,0.011,0.0107,0.0105,0.0102,0.0099,0.0096,0.0093,0.009,0.0087,0.0084,0.008,0.0077,0.0073,0.0069,0.0066,0.0062,0.0058,0.0055,0.0051,0.0047,0.0043,0.004,0.0036,0.0032,0.0029,0.0026,0.0022,0.0019,0.0016,0.0013,0.001,0.0007,0.0005,0.0002,-0.0,-0.0002,-0.0004,-0.0006,-0.0008,-0.0009,-0.0011,-0.0012,-0.0013,-0.0014,-0.0015,-0.0015,-0.0016,-0.0016,-0.0016,-0.0016,-0.0016,-0.0016,-0.0016,-0.0016,-0.0015,-0.0015,-0.0014,-0.0014,-0.0013,-0.0012,-0.0012,-0.0011,-0.001,-0.001,-0.0009,-0.0009,-0.0008,-0.0007,-0.0007,-0.0006,-0.0006,-0.0006,-0.0005,-0.0005,-0.0005,-0.0005,-0.0005,-0.0005],"gas":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.978,0.95,0.933,0.909,0.895,0.876,0.865,0.85,0.84,0.828,0.821,0.81,0.804,0.796,0.791,0.785,0.78,0.775,0.771,0.766,0.763,0.759,0.756,0.752,0.749,0.745,0.743,0.74,0.737,0.732,0.728,0.723,0.721,0.717,0.715,0.712,0.711,0.711,0.711,0.711,0.711,0.712,0.712,0.713,0.713,0.712,0.712,0.711,0.71,0.708,0.706,0.704,0.702,0.699,0.697,0.693,0.691,0.687,0.685,0.682,0.68,0.677,0.675,0.673,0.671,0.669,0.668,0.667,0.666,0.666,0.665,0.665,0.665,0.665,0.666,0.666,0.667,0.668,0.668,0.669,0.67,0.671,0.671,0.672,0.673,0.673,0.674,0.674,0.674,0.675,0.675,0.674,0.674,0.674,0.673,0.673,0.672,0.671,0.671,0.67,0.669,0.668,0.667,0.666,0.665,0.664,0.664,0.662,0.662,0.661,0.66,0.659,0.659,0.658,0.657,0.657,0.656,0.655,0.655,0.654,0.654,0.654,0.653,0.653,0.653,0.652,0.652,0.652,0.651,0.651,0.651,0.65,0.65,0.65,0.65,0.65,0.649,0.649,0.649,0.649,0.649,0.648,0.648,0.648,0.648,0.648,0.648,0.647,0.647,0.647,0.647,0.647,0.646,0.646,0.646,0.646,0.645,0.645,0.645,0.645,0.644,0.644,0.644,0.644,0.643,0.643,0.643,0.642,0.642,0.642,0.642,0.641,0.641,0.64,0.64,0.64,0.64,0.639,0.639,0.639,0.638,0.638,0.638,0.637,0.637,0.637,0.636,0.636,0.636,0.636,0.635,0.635,0.635,0.634,0.634,0.634,0.634,0.633,0.633,0.633,0.633,0.632,0.632,0.632,0.632,0.631,0.631,0.631,0.631,0.631,0.63,0.63,0.63,0.63,0.629,0.629,0.629,0.629,0.628,0.628,0.628,0.628,0.628,0.627,0.627,0.627,0.627,0.626,0.626,0.626,0.626,0.625,0.625,0.625,0.625,0.624,0.624,0.624,0.624,0.623,0.623,0.623,0.623,0.623,0.622,0.622,0.622,0.622,0.621,0.621,0.621,0.621,0.62,0.62,0.62,0.62,0.619,0.619,0.619,0.619,0.618,0.618,0.618,0.618,0.618,0.617,0.617,0.617,0.617,0.616,0.616,0.616,0.616,0.615,0.615,0.615,0.615,0.614,0.614,0.614,0.614,0.613,0.613,0.613,0.613,0.612,0.612,0.612,0.611,0.611,0.611,0.611,0.61,0.61,0.61,0.609,0.609,0.609,0.608,0.608,0.608,0.607,0.607,0.606,0.606,0.605,0.604,0.603,0.602,0.599,0.597,0.593],"dl":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.1396,0.1396,0.1396,0.1396,0.1396,0.1396,0.1396,0.1316,0.0983,0.0783,0.0515,0.0364,0.0153,0.0024,-0.0151,-0.0255,-0.0393,-0.0473,-0.0575,-0.0631,-0.0699,-0.0734,-0.0772,-0.0789,-0.0802,-0.0804,-0.0797,-0.0788,-0.0766,-0.0747,-0.0715,-0.069,-0.0651,-0.0623,-0.0579,-0.0549,-0.0504,-0.0474,-0.043,-0.04,-0.0359,-0.0332,-0.0293,-0.0268,-0.0232,-0.0209,-0.0344,-0.0451,-0.0598,-0.0684,-0.0797,-0.0859,-0.0935,-0.0973,-0.1012,-0.1028,-0.1035,-0.1031,-0.1012,-0.0991,-0.095,-0.0917,-0.0859,-0.0815,-0.0744,-0.0693,-0.0613,-0.0556,-0.0469,-0.0408,-0.0317,-0.0254,-0.016,-0.0097,-0.0003,0.0059,0.0151,0.0211,0.0298,0.0354,0.0435,0.0486,0.0558,0.0603,0.0664,0.0702,0.0751,0.078,0.0816,0.0836,0.0859,0.087,0.088,0.0882,0.0879,0.0873,0.0858,0.0845,0.082,0.0801,0.0767,0.0742,0.0702,0.0673,0.0628,0.0596,0.0547,0.0514,0.0463,0.0429,0.0378,0.0344,0.0293,0.0261,0.0212,0.0181,0.0136,0.0107,0.0066,0.004,0.0004,-0.0019,-0.005,-0.0069,-0.0095,-0.0111,-0.0132,-0.0143,-0.0159,-0.0167,-0.0177,-0.0182,-0.0187,-0.0189,-0.0189,-0.0188,-0.0185,-0.0181,-0.0174,-0.0169,-0.0159,-0.0151,-0.0139,-0.013,-0.0116,-0.0107,-0.0091,-0.0081,-0.0066,-0.0055,-0.0039,-0.0029,-0.0014,-0.0004,0.0011,0.002,0.0033,0.0041,0.0053,0.006,0.007,0.0076,0.0085,0.0089,0.0095,0.0099,0.0103,0.0105,0.0107,0.0108,0.0108,0.0107,0.0105,0.0103,0.01,0.0097,0.0092,0.0088,0.0082,0.0077,0.007,0.0065,0.0057,0.0051,0.0042,0.0036,0.0027,0.0021,0.0012,0.0006,-0.0003,-0.0009,-0.0017,-0.0023,-0.0031,-0.0036,-0.0043,-0.0047,-0.0053,-0.0057,-0.0062,-0.0066,-0.007,-0.0072,-0.0075,-0.0077,-0.0079,-0.008,-0.008,-0.008,-0.008,-0.008,-0.0078,-0.0077,-0.0075,-0.0073,-0.0071,-0.0068,-0.0065,-0.0062,-0.0058,-0.0055,-0.0051,-0.0048,-0.0043,-0.004,-0.0035,-0.0032,-0.0028,-0.0024,-0.002,-0.0017,-0.0012,-0.001,-0.0006,-0.0003,0.0,0.0003,0.0006,0.0008,0.001,0.0012,0.0014,0.0015,0.0016,0.0017,0.0018,0.0018,0.0018,0.0018,0.0018,0.0018,0.0017,0.0016,0.0015,0.0013,0.0012,0.001,0.0008,0.0007,0.0004,0.0003,0.0,-0.0001,-0.0004,-0.0006,-0.0008,-0.001,-0.0012,-0.0014,-0.0016,-0.0017,-0.0019,-0.0021,-0.0022,-0.0023,-0.0025,-0.0025,-0.0026,-0.0027,-0.0027,-0.0027,-0.0028,-0.0028,-0.0027,-0.0027,-0.0027,-0.0026,-0.0025,-0.0024,-0.0023,-0.0022,-0.0021,-0.002,-0.0018,-0.0017,-0.0016,-0.0014,-0.0013,-0.0011,-0.001,-0.0008,-0.0006,-0.0005,-0.0003,-0.0002,-0.0,0.0001,0.0003,0.0004,0.0005,0.0006,0.0008,0.0009,0.001,0.0011,0.0012,0.0012,0.0013,0.0014,0.0014,0.0015,0.0015],"final":{"x":0.05997271409982334,"vx":0.042472116197841955,"vz":-0.8087302064985477,"th":-0.0005271890085939289,"combustible":3315.19046800831,"t_ign":6.88,"ok":true}};     // trayectoria del piloto automático (con las mismas condiciones)
+const $ = (s) => document.querySelector(s);
+
+// =====================================================================  FÍSICA (misma que la fase 2 de Python)
+const G0 = 9.80665, RHO = 1.225;
+const P = { seca: 22000, comb: 6000, Tmax: 845000, isp: 282, L: 40, D: 3.7, brac: 15, dmax: 8 * Math.PI / 180, gasMin: 0.4, cd: 1.0 };
+P.Alat = P.L * P.D;
+const inercia = (m) => m * P.L * P.L / 12;
+const VIENTO = { media: 5, rafega: 3, fase: 0 };
+const vientoEn = (t) => VIENTO.media + VIENTO.rafega * (0.6 * Math.sin(0.5 * t + VIENTO.fase) + 0.4 * Math.sin(1.7 * t + 2 * VIENTO.fase));
+const LIMITES = { vz: 2.5, vx: 1.0, th: 5 * Math.PI / 180, x: 5.0 };
+
+function deriv(s, gas, dl, w) {
+  const [x, z, vx, vz, th, om, m] = s;
+  const T = m > P.seca ? gas * P.Tmax : 0;
+  let Fx = T * Math.sin(th + dl), Fz = T * Math.cos(th + dl) - m * G0;
+  const par = -T * P.brac * Math.sin(dl);
+  const vr = w - vx; Fx += 0.5 * RHO * P.cd * P.Alat * vr * Math.abs(vr);
+  return [vx, vz, Fx / m, Fz / m, om, par / inercia(m), -T / (P.isp * G0)];
+}
+function rk4(s, gas, dl, w, dt) {
+  const add = (a, b, f) => a.map((v, i) => v + f * b[i]);
+  const k1 = deriv(s, gas, dl, w), k2 = deriv(add(s, k1, dt / 2), gas, dl, w);
+  const k3 = deriv(add(s, k2, dt / 2), gas, dl, w), k4 = deriv(add(s, k3, dt), gas, dl, w);
+  const n = s.map((v, i) => v + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+  n[6] = Math.max(n[6], P.seca);
+  return n;
+}
+window.__fis = { deriv, rk4, P, vientoEn };            // para las pruebas automáticas
+
+// =====================================================================  ESTADO DEL JUEGO
+const DT = 0.01;
+const clip = (v, a, b) => Math.min(Math.max(v, a), b);
+let modo = "facil", ayuda = true, pausa = false, jugando = false, fin = false;
+let s, t, motor, gasObj, thRef, dlObj, ign, acc, rastro, teclas = {};
+
+function reiniciar() {
+  s = [120, 2500, -6, -120, 0, 0, P.seca + P.comb];       // misma situación inicial que la fase 2
+  t = 0; motor = false; gasObj = 1.0; thRef = 0; dlObj = 0; ign = null; acc = 0; fin = false;
+  rastro = [[s[0], s[1]]]; vienePausa = false; resultado = null;
+}
+let resultado = null, vienePausa = false;
+
+// Piloto automático de actitud (el mismo PD que usa el controlador de Python)
+function autoGiro(T) {
+  const alfa = 4.0 * (thRef - s[4]) - 2.8 * s[5];
+  const sd = -inercia(s[6]) * alfa / (P.brac * T);
+  return clip(Math.asin(clip(sd, -1, 1)), -P.dmax, P.dmax);
+}
+
+function pasoJuego() {
+  const w = vientoEn(t);
+  // ---- gas
+  const gas = motor && s[6] > P.seca ? clip(gasObj, P.gasMin, 1) : 0;
+  const T = gas * P.Tmax;
+  // ---- giro del motor según la dificultad
+  let dl = 0;
+  if (T > 1e3) {
+    if (modo === "facil") {                                  // el piloto automático lleva el cohete al centro
+      const h = s[1], limite = 15 * Math.PI / 180 * clip(h / 60, 0.3, 1);
+      const axDes = -0.16 * s[0] - 0.56 * s[2];
+      thRef = clip(axDes / (T / s[6]), -limite, limite);
+      dl = autoGiro(T);
+    } else if (modo === "asistido") {                        // tú eliges la inclinación, él la mantiene
+      thRef = clip(thRef + (teclas.ArrowRight ? 1 : 0) * 0.35 * DT - (teclas.ArrowLeft ? 1 : 0) * 0.35 * DT, -0.35, 0.35);
+      dl = autoGiro(T);
+    } else {                                                 // experto: tú mueves el motor
+      const objetivo = (teclas.ArrowRight ? -1 : 0) + (teclas.ArrowLeft ? 1 : 0);
+      dlObj += clip(objetivo * P.dmax - dlObj, -0.35 * DT * 2, 0.35 * DT * 2);
+      dl = clip(dlObj, -P.dmax, P.dmax);
+    }
+  }
+  // ---- integrar
+  const antes = s.slice(); const nuevo = rk4(s, gas, dl, w, DT);
+  s = nuevo; t += DT;
+  gasAplicado = gas; dlAplicado = dl; vAplicado = w;
+  if (Math.floor(t / 0.25) !== Math.floor((t - DT) / 0.25)) rastro.push([s[0], s[1]]);
+  if (s[1] <= 0) {                                           // contacto con el suelo
+    const f = antes[1] / (antes[1] - s[1]);
+    s = antes.map((v, i) => v + f * (s[i] - v)); s[1] = 0;
+    terminar("suelo"); return;
+  }
+  if (t > 150 || s[1] > 6000) terminar(s[1] > 6000 ? "escape" : "tiempo");
+}
+let gasAplicado = 0, dlAplicado = 0, vAplicado = 0;
+
+function terminar(causa) {
+  fin = true; jugando = false;
+  const [x, z, vx, vz, th, om, m] = s, motivos = [];
+  if (causa === "escape") motivos.push("el cohete se ha ido al espacio (demasiado gas)");
+  if (causa === "tiempo") motivos.push("tiempo agotado");
+  if (causa === "suelo") {
+    if (Math.abs(vz) > LIMITES.vz) motivos.push("impacto vertical demasiado fuerte");
+    if (Math.abs(vx) > LIMITES.vx) motivos.push("demasiada velocidad lateral");
+    if (Math.abs(th) > LIMITES.th) motivos.push("demasiado inclinado");
+    if (Math.abs(x) > LIMITES.x) motivos.push("fuera de la plataforma");
+  }
+  resultado = { ok: motivos.length === 0, motivos, x, vx, vz, th, comb: P.comb - (m - P.seca), t, ign };
+  let mejor = null;
+  try { mejor = JSON.parse(localStorage.getItem("mejorCohete") || "null"); } catch (e) { }
+  if (resultado.ok && (!mejor || resultado.comb < mejor.comb)) { try { localStorage.setItem("mejorCohete", JSON.stringify({ comb: resultado.comb, modo })); } catch (e) { } mejor = { comb: resultado.comb, modo }; }
+  resultado.mejor = mejor;
+  mostrarResultado();
+}
+
+// =====================================================================  ENTRADA
+const REPETIR = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
+function pulsar(k) {
+  if (!jugando) return;
+  if (k === "Space") { motor = !motor; if (motor && ign === null) ign = t; }
+  if (k === "ArrowUp") gasObj = clip(gasObj + 0.05, P.gasMin, 1);
+  if (k === "ArrowDown") gasObj = clip(gasObj - 0.05, P.gasMin, 1);
+  if (k === "KeyP") alternarPausa();
+  if (k === "Digit0") thRef = 0;
+}
+addEventListener("keydown", (e) => {
+  if (REPETIR.has(e.code) || e.code === "Enter" || e.code === "KeyP" || e.code === "Digit0") e.preventDefault();
+  if (e.repeat && e.code === "Space") return;
+  teclas[e.code] = true; pulsar(e.code);
+  if (e.code === "Enter") { if (!jugando) empezar(); }
+});
+addEventListener("keyup", (e) => { teclas[e.code] = false; if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
+// Los botones no se quedan con el foco: si no, Espacio/Intro (motor, empezar) los volvería a «pulsar»
+document.addEventListener("click", (e) => { const b = e.target.closest("button, select"); if (b) setTimeout(() => b.blur(), 0); });
+addEventListener("blur", () => { teclas = {}; });
+document.querySelectorAll("[data-tecla]").forEach((b) => {
+  const k = b.dataset.tecla;
+  const abajo = (ev) => { ev.preventDefault(); teclas[k] = true; pulsar(k); };
+  const arriba = (ev) => { ev.preventDefault(); teclas[k] = false; };
+  b.addEventListener("pointerdown", abajo); b.addEventListener("pointerup", arriba);
+  b.addEventListener("pointerleave", arriba); b.addEventListener("pointercancel", arriba);
+});
+// ↑/↓ mantenidas cambian el gas poco a poco
+let tUlt = performance.now();
+function repetirGas(dt) {
+  if (!jugando) return;
+  if (teclas.ArrowUp) gasObj = clip(gasObj + 0.5 * dt, P.gasMin, 1);
+  if (teclas.ArrowDown) gasObj = clip(gasObj - 0.5 * dt, P.gasMin, 1);
+}
+document.querySelectorAll("[data-modo]").forEach((b) => b.onclick = () => { modo = b.dataset.modo; marcarModo(); reiniciarYMostrar(); });
+function marcarModo() { document.querySelectorAll("[data-modo]").forEach((b) => b.classList.toggle("on", b.dataset.modo === modo)); }
+$("#btn-ayuda").onclick = () => { ayuda = !ayuda; $("#btn-ayuda").textContent = ayuda ? "Sí" : "No"; $("#btn-ayuda").classList.toggle("on", ayuda); };
+$("#btn-pausa").onclick = alternarPausa;
+$("#btn-reiniciar").onclick = reiniciarYMostrar;
+function alternarPausa() { if (!jugando) return; pausa = !pausa; $("#btn-pausa").textContent = pausa ? "Seguir" : "Pausa"; }
+function reiniciarYMostrar() { reiniciar(); jugando = false; pausa = false; $("#btn-pausa").textContent = "Pausa"; mostrarInicio(); }
+function empezar() { reiniciar(); jugando = true; $("#cartel").classList.add("oculto"); }
+
+// =====================================================================  PANTALLAS
+const TEXTO_MODO = {
+  facil: "<b>Fácil.</b> Tú decides <b>cuándo encender</b> el motor y <b>cuánto gas</b> usar. Un piloto automático se encarga de la inclinación y de llevarte al centro.",
+  asistido: "<b>Asistido.</b> Además decides hacia dónde se inclina el cohete (<kbd>←</kbd> <kbd>→</kbd>); un piloto automático mantiene esa inclinación.",
+  experto: "<b>Experto.</b> Mueves tú el propio motor (<kbd>←</kbd> <kbd>→</kbd>). El cohete es inestable: es muy difícil.",
+};
+function mostrarInicio() {
+  marcarModo();
+  $("#caja").innerHTML = `<h2>Aterriza tú el cohete</h2>
+    <p>El cohete cae a <b>120 m/s</b> desde 2.500 m y tiene que posarse sobre la plataforma verde. Con el motor apagado solo cae: hay que encenderlo <b>en el momento justo</b>, ni antes (gastas el combustible) ni después (te estrellas).</p>
+    <p>${TEXTO_MODO[modo]}</p>
+    <p><kbd>Espacio</kbd> encender / apagar motor &nbsp; <kbd>↑</kbd> <kbd>↓</kbd> gas (40–100 %) &nbsp; <kbd>P</kbd> pausa &nbsp; <kbd>0</kbd> inclinación a cero (asistido)</p>
+    <p class="dim">Para aterrizar bien: velocidad vertical ≤ 2,5 m/s, lateral ≤ 1 m/s, inclinación ≤ 5° y a menos de 5 m del centro. El motor no puede bajar del 40 % de gas, así que no puede flotar: tienes que frenar justo al tocar el suelo. Tu partida se compara con la del piloto automático del proyecto (el «fantasma» gris).</p>
+    <button class="grande" id="ir">Empezar (Intro)</button>`;
+  $("#ir").onclick = empezar; $("#cartel").classList.remove("oculto");
+}
+function mostrarResultado() {
+  const r = resultado, g = FANTASMA.final, f = (v, d = 2) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(d);
+  const cel = (ok, txt) => `<td class="${ok ? "bien" : "mal"}">${txt}</td>`;
+  const mejor = r.mejor ? `<p class="dim">Tu mejor aterrizaje correcto: ${r.mejor.comb.toFixed(0)} kg de combustible (${r.mejor.modo}).</p>` : "";
+  let veredicto = r.ok ? (r.comb <= g.combustible ? "¡Has aterrizado y has gastado menos combustible que el piloto automático!" : "¡Aterrizaje correcto!") : "Fallo: " + r.motivos.join(", ") + ".";
+  $("#caja").innerHTML = `<h2 class="${r.ok ? "bien" : "mal"}">${r.ok ? "ATERRIZAJE CORRECTO" : "FALLO"}</h2>
+    <p>${veredicto}</p>
+    <table><tr><th></th><th>Tú</th><th>Piloto automático</th><th>Límite</th></tr>
+    <tr><td>Velocidad vertical</td>${cel(Math.abs(r.vz) <= LIMITES.vz, f(r.vz) + " m/s")}<td>${f(g.vz)} m/s</td><td>±2,5</td></tr>
+    <tr><td>Velocidad lateral</td>${cel(Math.abs(r.vx) <= LIMITES.vx, f(r.vx) + " m/s")}<td>${f(g.vx)} m/s</td><td>±1,0</td></tr>
+    <tr><td>Inclinación</td>${cel(Math.abs(r.th) <= LIMITES.th, f(r.th * 180 / Math.PI, 1) + "°")}<td>${f(g.th * 180 / Math.PI, 1)}°</td><td>±5°</td></tr>
+    <tr><td>Distancia al centro</td>${cel(Math.abs(r.x) <= LIMITES.x, f(r.x, 1) + " m")}<td>${f(g.x, 1)} m</td><td>±5 m</td></tr>
+    <tr><td>Combustible gastado</td><td>${r.comb.toFixed(0)} kg</td><td>${g.combustible.toFixed(0)} kg</td><td>—</td></tr>
+    <tr><td>Encendido del motor</td><td>${r.ign === null ? "nunca" : r.ign.toFixed(1) + " s"}</td><td>${g.t_ign.toFixed(1)} s</td><td>—</td></tr></table>
+    ${mejor}
+    <button class="grande" id="ir">Intentarlo otra vez (Intro)</button>`;
+  $("#ir").onclick = empezar; $("#cartel").classList.remove("oculto");
+}
+
+// =====================================================================  DIBUJO (2D)
+const cv = $("#c"), ctx = cv.getContext("2d");
+function fantasmaEn(tt) {
+  const F = FANTASMA, n = F.t.length;
+  if (tt >= F.t[n - 1]) return { x: F.x[n - 1], z: F.z[n - 1], th: F.th[n - 1], gas: 0, dl: 0 };
+  let lo = 0, hi = n - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (F.t[mid] <= tt) lo = mid; else hi = mid; }
+  const a = (tt - F.t[lo]) / (F.t[hi] - F.t[lo]), L = (k) => F[k][lo] + (F[k][hi] - F[k][lo]) * a;
+  return { x: L("x"), z: L("z"), th: L("th"), gas: F.gas[lo], dl: F.dl[lo] };
+}
+function formaCohete(x, z, th, gas, dl) {
+  const L = P.L, w = P.D * 1.6, c = Math.cos(th), sn = Math.sin(th);
+  const g = (p) => [x + p[0] * c + p[1] * sn, z - p[0] * sn + p[1] * c];
+  const cuerpo = [[-w / 2, 0], [w / 2, 0], [w / 2, L * .88], [0, L], [-w / 2, L * .88]].map(g);
+  const patas = [[-w / 2, 3], [-w * 2, -1.5], [-w / 2, 7], [w / 2, 7], [w * 2, -1.5], [w / 2, 3]].map(g);
+  const lf = (6 + 20 * gas) * (0.92 + 0.16 * Math.random()), cd = Math.cos(-dl), sd = Math.sin(-dl);
+  const llama = gas > 0.001 ? [[-w / 3, 0], [w / 3, 0], [0, -lf]].map((p) => [p[0] * cd + p[1] * sd, -p[0] * sd + p[1] * cd]).map(g) : null;
+  return { cuerpo, patas, llama };
+}
+function dibujar() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const [x, z, vx, vz, th, om, m] = s;
+  const yb = Math.max(z - 35, -12), span = 95, esc = H / span;
+  const X = (a) => W / 2 + (a - x) * esc, Y = (b) => H - (b - yb) * esc;
+  ctx.fillStyle = "#151c2e"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#232b44"; ctx.lineWidth = 1; ctx.fillStyle = "#5c6580"; ctx.font = "11px system-ui";
+  for (let y = Math.ceil(yb / 20) * 20; y < yb + span; y += 20) { ctx.beginPath(); ctx.moveTo(0, Y(y)); ctx.lineTo(W, Y(y)); ctx.stroke(); ctx.fillText(y + " m", W - 52, Y(y) - 3); }
+  const x0 = x - W / 2 / esc, x1 = x + W / 2 / esc;
+  for (let a = Math.ceil(x0 / 20) * 20; a < x1; a += 20) { ctx.beginPath(); ctx.moveTo(X(a), 0); ctx.lineTo(X(a), H); ctx.stroke(); }
+  if (Y(0) < H) { ctx.fillStyle = "#1d2a1f"; ctx.fillRect(0, Y(0), W, H - Y(0)); }
+  ctx.fillStyle = "#80ed99"; ctx.fillRect(X(-5), Y(0), 10 * esc, Math.max(4, 0.6 * esc));
+  const poli = (pts, color, alfa = 1) => { ctx.globalAlpha = alfa; ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1])))); ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1; };
+  // fantasma (piloto automático) a la misma hora
+  const gh = fantasmaEn(t), fg = formaCohete(gh.x, gh.z, gh.th, gh.gas, gh.dl);
+  if (fg.llama) poli(fg.llama, "#ff9f1c", .25);
+  poli(fg.patas, "#7d869c", .3); poli(fg.cuerpo, "#9aa4c0", .3);
+  // tu cohete
+  const f = formaCohete(x, z, th, gasAplicado, dlAplicado);
+  if (f.llama) poli(f.llama, "#ff9f1c"); poli(f.patas, "#7d869c"); poli(f.cuerpo, "#e6e9f0");
+  // flecha de viento
+  ctx.fillStyle = "#8a93a8"; ctx.font = "12px system-ui"; ctx.fillText("viento " + (vAplicado || vientoEn(t)).toFixed(1) + " m/s " + (vientoEn(t) >= 0 ? "→" : "←"), W / 2 - 40, 22);
+  // mini-mapa
+  const mw = Math.min(190, W * 0.28), mh = Math.min(250, H * 0.45), mx = W - mw - 12, my = H - mh - 12;
+  ctx.fillStyle = "rgba(13,19,33,.82)"; ctx.fillRect(mx, my, mw, mh); ctx.strokeStyle = "#2a3350"; ctx.strokeRect(mx, my, mw, mh);
+  const xm = Math.max(150, ...rastro.map((p) => Math.abs(p[0]))) * 1.15, zm = 2600;
+  const MX = (a) => mx + mw / 2 + (a / xm) * (mw / 2 - 8), MY = (b) => my + mh - 8 - (Math.max(b, 0) / zm) * (mh - 16);
+  ctx.lineWidth = 1.2; ctx.strokeStyle = "#7d869c"; ctx.setLineDash([3, 3]); ctx.beginPath();
+  FANTASMA.x.forEach((a, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, MX(a), MY(FANTASMA.z[i]))); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#4cc9f0"; ctx.lineWidth = 1.6; ctx.beginPath();
+  rastro.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, MX(p[0]), MY(p[1]))); ctx.lineTo(MX(x), MY(z)); ctx.stroke();
+  ctx.fillStyle = "#80ed99"; ctx.fillRect(MX(-5), MY(0) - 2, MX(5) - MX(-5), 3);
+  ctx.fillStyle = "#ff9f1c"; ctx.beginPath(); ctx.arc(MX(x), MY(z), 4, 0, 7); ctx.fill();
+  ctx.fillStyle = "#8a93a8"; ctx.font = "11px system-ui"; ctx.fillText("tú (azul) · piloto (gris)", mx + 8, my + 14);
+  if (pausa) { ctx.fillStyle = "rgba(13,19,33,.55)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#e6e9f0"; ctx.font = "bold 28px system-ui"; ctx.fillText("PAUSA", W / 2 - 45, H / 2); }
+}
+
+function hud() {
+  const [x, z, vx, vz, th, om, m] = s, fila = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`, fmt = (v, d = 1) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(d);
+  let h = fila("tiempo", t.toFixed(1) + " s") + fila("altura", z.toFixed(0) + " m") + fila("vel. vertical", fmt(vz) + " m/s") + fila("vel. lateral", fmt(vx) + " m/s") +
+    fila("posición x", fmt(x, 0) + " m") + fila("inclinación", fmt(th * 180 / Math.PI) + "°") + fila("gas", motor ? (100 * clip(gasObj, P.gasMin, 1)).toFixed(0) + " %" : "—") +
+    fila("combustible", Math.max(m - P.seca, 0).toFixed(0) + " kg");
+  if (modo === "asistido") h += fila("inclinación pedida", fmt(thRef * 180 / Math.PI) + "°");
+  h += `<div id="motor" style="color:${motor && m > P.seca ? "var(--orange)" : "var(--dim)"}">${motor ? (m > P.seca ? "MOTOR ENCENDIDO" : "SIN COMBUSTIBLE") : "MOTOR APAGADO"}</div>`;
+  $("#hud").innerHTML = h;
+  // medidor de frenada: velocidad actual frente a la máxima que aún se podría frenar con el perfil del piloto (11 m/s²)
+  const vmax = Math.sqrt(1 + 2 * 11 * Math.max(z, 0)), r = Math.max(-vz, 0) / vmax;
+  $("#gauge").classList.toggle("oculto", !ayuda);
+  $("#rell").style.width = Math.min(100, r * 100) + "%"; $("#rell").style.background = motor ? (r <= 1.05 ? "var(--green)" : "var(--red)") : (r < 0.85 ? "var(--green)" : r < 0.97 ? "var(--orange)" : "var(--red)");
+  let c = "", col = "var(--dim)";
+  if (!motor && r >= 0.97) { c = "¡ENCIENDE EL MOTOR YA!"; col = "var(--red)"; }
+  else if (!motor && r >= 0.85) { c = "Prepárate para encender"; col = "var(--orange)"; }
+  else if (!motor) { c = "Cayendo: aún hay margen"; }
+  else if (r > 1.02) { c = "Frenas poco: ¡más gas!"; col = "var(--red)"; }
+  else if (r < 0.9 && z > 30 && vz < -3) { c = "Frenas de sobra: puedes bajar gas"; col = "var(--green)"; }
+  else { c = "Buena frenada"; col = "var(--green)"; }
+  $("#consejo").textContent = c; $("#consejo").style.color = col;
+}
+
+// =====================================================================  BUCLE
+function bucle(ahora) {
+  const dt = Math.min((ahora - tUlt) / 1000, 0.1); tUlt = ahora;
+  if (jugando && !pausa) {
+    repetirGas(dt);
+    acc += dt * +$("#vel").value;
+    let n = 0; while (acc >= DT && jugando && n++ < 2000) { pasoJuego(); acc -= DT; }
+  }
+  dibujar(); hud(); requestAnimationFrame(bucle);
+}
+reiniciar(); gasAplicado = 0; dlAplicado = 0; marcarModo(); mostrarInicio();
+requestAnimationFrame(bucle);
+window.__juego = { get modo() { return modo; }, get s() { return s; }, get t() { return t; }, get resultado() { return resultado; }, get jugando() { return jugando; }, empezar, pulsar,
+  poner(o) { if (o.motor !== undefined) motor = o.motor; if (o.gas !== undefined) gasObj = o.gas; if (o.modo) modo = o.modo; if (o.th !== undefined) thRef = o.th; if (o.ign !== undefined && o.ign && ign === null) ign = t; } };
+</script>
+</body>
+</html>
